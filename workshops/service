@@ -1,0 +1,68 @@
+#!/usr/bin/python
+import sys
+sys.path.append('..')
+import os
+import time
+import pytz
+import json
+import requests
+import traceback
+import calendar
+from datetime import datetime
+from operator import itemgetter
+
+from hosted import CONFIG
+
+CONFIG.restart_on_update()
+
+de_tz = pytz.timezone('Europe/Berlin')
+
+def update():
+    r = requests.get('https://raw.githubusercontent.com/voc/32C3_schedule/master/workshops.schedule.json')
+    days = r.json()['schedule']['conference']['days']
+
+    out = []
+    for day in days:
+        for room_name, events in day['rooms'].iteritems():
+            for event in events:
+                date = datetime.strptime(event['date'][:-6], "%Y-%m-%dT%H:%M:%S")
+                date = date.replace(tzinfo=de_tz).astimezone(pytz.utc)
+                start_unix = calendar.timegm(date.timetuple())
+                out.append(dict(
+                    start_unix = start_unix,
+                    start_str = event['start'],
+                    name = event['title'],
+                    place = event['room'],
+                ))
+    return out
+
+def main():
+    while 1:
+        try:
+            events = update()
+        except:
+            print >>sys.stderr, "fail"
+            traceback.print_exc()
+            time.sleep(120)
+            continue
+
+        with file("workshops.json.new", "wb") as f:
+            f.write(json.dumps([dict(
+                text = "%s: %s @ %s" % (
+                    event['start_str'], 
+                    event['name'], 
+                    event['place'], 
+                ),
+                start_unix = event['start_unix'],
+            ) for event in sorted(events, key=itemgetter('start_unix'))], 
+                ensure_ascii=False,
+                separators=(',',':')
+            ).encode('utf8'))
+        os.rename("workshops.json.new", "../workshops.json")
+
+        print >>sys.stderr, "updated workshops"
+
+        time.sleep(600)
+
+if __name__ == "__main__":
+    main()

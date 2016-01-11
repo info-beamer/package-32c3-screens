@@ -1,0 +1,45 @@
+{
+    "name": "Twitter node",
+    "permissions": {
+        "network": "Needs to access twitter API"
+    },
+    "options": [{
+        "title": "Generic",
+        "type": "section"
+    }, {
+        "title": "Search/Hashtag",
+        "ui_width": 6,
+        "name": "search",
+        "type": "string",
+        "default": "#test"
+    },
+        
+    {
+        "title": "Authentication",
+        "type": "section"
+    }, {
+        "title": "API Key",
+        "ui_width": 6,
+        "name": "consumer_key",
+        "type": "string",
+        "default": ""
+    },{
+        "title": "API Secret",
+        "ui_width": 6,
+        "name": "consumer_secret",
+        "type": "string",
+        "default": ""
+    },{
+        "title": "Access Token",
+        "ui_width": 6,
+        "name": "access_token",
+        "type": "string",
+        "default": ""
+    },{
+        "title": "Access Token Secret",
+        "ui_width": 6,
+        "name": "access_token_secret",
+        "type": "string",
+        "default": ""
+    }]
+}

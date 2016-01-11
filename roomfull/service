@@ -1,0 +1,21 @@
+#!/usr/bin/python
+import time, json, requests
+
+def main():
+    while 1:
+        time.sleep(10)
+
+        # Fetch the room status here. A data structure with the
+        # following content is expected:
+        # {"room1": true, "room2": false}
+        #
+        # r = requests.get('http://............../')
+        # data = r.json()
+
+        data = {} # dummy
+        with file("../room-full.json", "wb") as f:
+            f.write(json.dumps(data))
+        time.sleep(10)
+
+if __name__ == "__main__":
+    main()

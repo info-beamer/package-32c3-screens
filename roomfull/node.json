@@ -1,0 +1,5 @@
+{
+    "name": "Room full?",
+    "permissions": {"network": "HTTP requests"},
+    "options": []
+}

@@ -1,0 +1,114 @@
+#!/usr/bin/python
+import os
+import sys
+import time
+import pytz
+import json
+import traceback
+import urllib2
+import calendar
+from datetime import datetime, timedelta
+from operator import itemgetter
+
+import dateutil.parser
+import defusedxml.ElementTree as ET
+from hosted import CONFIG
+
+CONFIG.restart_on_update()
+
+def get_schedule(url):
+    def load_events(xml):
+        def to_unixtimestamp(dt):
+            dt = dt.astimezone(pytz.utc)
+            ts = int(calendar.timegm(dt.timetuple()))
+            return ts
+        def text_or_empty(node, child_name):
+            child = node.find(child_name)
+            if child is None:
+                return u""
+            if child.text is None:
+                return u""
+            return unicode(child.text)
+        def parse_duration(value):
+            h, m = map(int, value.split(':'))
+            return timedelta(hours=h, minutes=m)
+
+        def all_events():
+            schedule = ET.fromstring(xml)
+            for day in schedule.findall('day'):
+                for room in day.findall('room'):
+                    for event in room.findall('event'):
+                        yield event
+
+        parsed_events = []
+        for event in all_events():
+            start = dateutil.parser.parse(event.find('date').text)
+            duration = parse_duration(event.find('duration').text)
+            end = start + duration
+
+            persons = event.find('persons')
+            if persons is not None:
+                persons = persons.findall('person')
+
+            parsed_events.append(dict(
+                start = start.astimezone(pytz.utc),
+                start_str = start.strftime('%H:%M'),
+                end_str = end.strftime('%H:%M'),
+                start_unix  = to_unixtimestamp(start),
+                end_unix = to_unixtimestamp(end),
+                duration = int(duration.total_seconds() / 60),
+                title = text_or_empty(event, 'title'),
+                place = text_or_empty(event, 'room'),
+                speakers = [
+                    unicode(person.text.strip()) 
+                    for person in persons
+                ] if persons else [],
+                lang = text_or_empty(event, 'language') or "unk",
+                id = event.attrib["id"],
+                type = "talk",
+            ))
+        return parsed_events
+
+    resp = urllib2.urlopen(url)
+    schedule = resp.read()
+    return load_events(schedule)
+
+def main():
+    while 1:
+        time.sleep(5)
+        events = []
+        for schedule in CONFIG['schedule_urls']:
+            print >>sys.stderr, "fetching %s" % schedule['url']
+            events.extend(get_schedule(schedule['url']))
+
+        if not events:
+            print >>sys.stderr, "no events" 
+            time.sleep(60)
+            continue
+
+        events.sort(key=itemgetter('start_unix'))
+
+        with file("talks.json.new", "wb") as f:
+            f.write(json.dumps([dict(
+                duration = event['duration'],
+                lang = event['lang'],
+                place = event['place'],
+                speakers = [s for s in event['speakers'] if s],
+                start_str = event['start_str'],
+                title = event['title'],
+                type = event['type'],
+                start_unix = event['start_unix'],
+                end_unix = event['end_unix'],
+                id = event['id'],
+            ) for event in sorted(events, key=itemgetter('start_unix'))], 
+                ensure_ascii=False,
+                separators=(',',':')
+            ).encode('utf8'))
+        os.rename("talks.json.new", "../talks.json")
+
+        print >>sys.stderr, "updated talks"
+
+        time.sleep(120)
+
+if __name__ == "__main__":
+    main()

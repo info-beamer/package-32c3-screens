@@ -1,0 +1,18 @@
+These visualizations are always a license nightmare...
+
+Feel free to reuse all Lua code in your own visualizations.
+
+The 32c3 logos are from https://events.ccc.de/congress/2015/wiki/Static:Design
+
+nav*.pkm - taken from c3nav.de
+
+font.ttf - ROBOTO CONDENSED by Christian Robertson Apache License, version 2.0
+
+img_* - images from twitter #32c3 picked during the conference. Unfortunately
+there's no easy way to check who created them now. So they are included to
+recreate the original display content that was running during the conference.
+I'd suggest you don't use them in your own visualization.
+
+ads_* - images created by 32c3 attendees during the conference. No idea about
+the license of those. You might not want to reuse them in your own
+visualizations.

@@ -1,0 +1,188 @@
+#!/usr/bin/python
+import sys
+sys.path.append('..')
+import os
+import time
+import json
+import requests
+import traceback
+import calendar
+from operator import itemgetter
+from itertools import cycle
+from threading import Thread
+from Queue import Queue
+
+from tweepy.streaming import StreamListener
+from tweepy import OAuthHandler
+from tweepy import Stream
+
+from hosted import CONFIG
+
+CONFIG.restart_on_update()
+
+TMPDIR = os.environ['TMPDIR']
+
+class DetectDupe(object):
+    def __init__(self, maxsize):
+        self._seen = []
+        self._maxsize = maxsize
+
+    def test(self, value):
+        if value in self._seen:
+            return True
+        self._seen.append(value)
+        if len(self._seen) > self._maxsize:
+            self._seen = self._seen[1:]
+        return False
+
+DuplicateUser = DetectDupe(5)
+
+def transform(tweet):
+    print >>sys.stderr, ''
+    print >>sys.stderr, repr(tweet.user.followers_count)
+    print >>sys.stderr,  repr(tweet.user.friends_count)
+    print >>sys.stderr,  repr(tweet.user.screen_name)
+    print >>sys.stderr,  repr(tweet.user.description)
+    print >>sys.stderr,  repr(tweet.text)
+
+    if DuplicateUser.test(tweet.user.screen_name):
+        print >>sys.stderr, "GARBAGE: duplicate user"
+        return
+
+    if hasattr(tweet, 'retweeted_status'):
+        print >>sys.stderr, "GARBAGE: ehh. retweet"
+        return
+
+    if tweet.user.default_profile:
+        print >>sys.stderr, "GARBAGE: Default profile"
+        return
+
+    if tweet.user.default_profile_image:
+        print >>sys.stderr, "GARBAGE: Default profile image"
+        return
+
+    if tweet.text.startswith("."):
+        print >>sys.stderr, "GARBAGE: Dot tweet"
+        return
+
+    if tweet.text.startswith("@"):
+        print >>sys.stderr, "GARBAGE: starts with @"
+        return
+
+    if tweet.text.startswith("RT "):
+        print >>sys.stderr, "GARBAGE: starts with RT"
+        return
+
+    if tweet.user.followers_count < 10:
+        print >>sys.stderr, "GARBAGE: too few followers"
+        return
+
+    if tweet.user.description is None:
+        print >>sys.stderr, "GARBAGE: no description"
+        return
+
+    replacements = []
+    for url in tweet.entities.get('urls', ()):
+        replacements.append((url['indices'], url['display_url']))
+    replacements.sort(reverse=True)
+
+    text = unicode(tweet.text)
+    for (start, end), replacement in replacements:
+        text = text[:start] + replacement + text[end:]
+    text = text.replace("\n", " ")
+    text = text.replace("&amp;", "&") # wtf?
+    text = text.replace("&lt;", "<") # wtf?
+    text = text.replace("&gt;", ">") # wtf?
+
+    for media in tweet.entities.get('media', ()):
+        background_image = media['media_url']
+        break
+    else:
+        background_image = None
+
+    print >>sys.stderr, 'ACCEPTED', repr(text)
+
+    return dict(
+        screen_name = tweet.user.screen_name,
+        name = tweet.user.name,
+        profile_image = tweet.user.profile_image_url.replace('_normal', ''),
+        text = text,
+        background_image = background_image,
+        created_at = tweet.created_at,
+    )
+
+
+workqueue = Queue()
+
+class StreamHandler(StreamListener):
+    """ A listener handles tweets are the received from the stream.
+    This is a basic listener that just prints received tweets to stdout.
+
+    """
+    def on_status(self, tweet):
+        tweet = transform(tweet)
+        if not tweet:
+            return
+
+        print >>sys.stderr, tweet
+        workqueue.put(tweet)
+
+    def on_error(self, status):
+        print >>sys.stderr, status
+
+try:
+    tweets = json.load(file("../tweets.json"))
+except:
+    traceback.print_exc()
+    tweets = []
+
+class Worker(Thread):
+    def run(self):
+        next_profile_image = cycle('twitter-profile-%d.jpg' % n for n in range(10)).next
+        while 1:
+            tweet = workqueue.get()
+
+            try:
+                r = requests.get("http://miscbox.dividuum.de/scale/png", params={
+                    'src': tweet['profile_image'],
+                }, timeout=5)
+            except:
+                traceback.print_exc()
+                continue
+
+            profile_image = next_profile_image()
+            # print "writing profile %s" % profile_image
+            with file(os.path.join(TMPDIR, profile_image), "wb") as f:
+                f.write(r.content)
+            tweet['profile_image'] = profile_image
+            try:
+                os.unlink(os.path.join("..", profile_image))
+            except:
+                pass
+            os.symlink(os.path.join(TMPDIR, profile_image), os.path.join('..', profile_image))
+
+            tweet['created_at'] = calendar.timegm(tweet['created_at'].utctimetuple())
+
+            tweets.append(tweet)
+            tweets.sort(key=itemgetter("created_at"), reverse=True)
+            while len(tweets) > 10:
+                tweets.pop(10)
+
+            with file("../tweets.json", "wb") as f:
+                json.dump(tweets, f)
+
+if __name__ == '__main__':
+    # wait till the configuration is non-empty. hosted will restart this process
+    # when the configuration changes.
+    if not CONFIG["consumer_key"]:
+        while 1: time.sleep(100000)
+
+    auth = OAuthHandler(CONFIG['consumer_key'], CONFIG['consumer_secret'])
+    auth.set_access_token(CONFIG['access_token'], CONFIG['access_token_secret'])
+
+    worker = Worker()
+    worker.daemon = True
+    worker.start()
+
+    stream = Stream(auth, StreamHandler())
+    stream.filter(track=CONFIG['search'].split())

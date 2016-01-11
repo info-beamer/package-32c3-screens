@@ -1,0 +1,24 @@
+{
+    "name": "Talk Scheduling",
+    "permissions": {
+        "network": "Has to fetch schedule from remote site"
+    },
+    "options": [{
+        "title": "Scheduling",
+        "type": "section"
+    }, {
+        "title": "Fahrplan Urls",
+        "name": "schedule_urls",
+        "doc_link": true,
+        "type": "list",
+        "itemname": "Url",
+        "hint": "List all fahrplans. They will be merged",
+        "items": [{
+            "title": "Url",
+            "ui_width": 12,
+            "name": "url",
+            "type": "string",
+            "default": "http://localhost/"
+        }]
+    }]
+}

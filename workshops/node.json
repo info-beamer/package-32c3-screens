@@ -1,0 +1,5 @@
+{
+    "name": "Workshops",
+    "permissions": {"network": "HTTP requests"},
+    "options": []
+}

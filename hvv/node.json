@@ -1,0 +1,7 @@
+{
+    "name": "HVV Departures",
+    "options": [],
+    "permissions": {
+        "network": "Needs to fetch live data"
+    }
+}

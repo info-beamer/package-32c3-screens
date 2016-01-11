@@ -1,0 +1,51 @@
+[{
+    "module": "videos",
+    "options": {
+        "videos": [
+            {
+                "file": "3d-druck.mp4",
+                "duration": 9.2,
+                "raw": false,
+                "text": "Need a 3D printed part?"
+            }
+        ]
+    },
+    "chance": 0.15,
+    "hours": "10 11 12 13 14 15 16 17 18 19 20 21"
+}, {
+    "module": "nav",
+    "chance": 0.05,
+    "hours": "10 11 12 13 14 15 16 17 18 19 20 21"
+},{
+    "module": "hvv",
+    "hours": "1 2 3 4 5 6 7"
+}, {
+    "module": "talks",
+    "options": {
+        "duration": 14
+    }
+}, {
+    "module": "text",
+    "options": {
+        "text": "Last Game at Game Parlour tonight: Pre New Year's Eve! Join us at 23:59:50 and count the last 10 seconds!"
+    },
+    "chance": 0.2
+}, {
+    "module": "images",
+    "chance": 0.5
+}, {
+    "module": "twitter"
+}, {
+    "module": "logo",
+    "chance": 0.1
+}, {
+    "module": "ads",
+    "chance": 0.5,
+    "hours": "10 11 12 13 14 15 16 17 18 19 20 21"
+}, {
+    "module": "text",
+    "options": {
+        "text": "Want to show your project on this screen? Contact 32c3@info-beamer.com"
+    },
+    "chance": 0.2
+}]
